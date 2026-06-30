@@ -1,0 +1,5 @@
+streamlit>=1.38
+pandas>=2.0
+
+[live]
+snowflake-snowpark-python>=1.20
