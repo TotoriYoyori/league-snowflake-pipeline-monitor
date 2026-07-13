@@ -6,6 +6,7 @@ requires-python = "~=3.11.0"
 dependencies = [
     "streamlit[snowflake]",
     "pandas",
+    "pydantic>=2.0.0",
 ]
 
 [tool.uv]

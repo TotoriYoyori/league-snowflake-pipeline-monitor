@@ -1,14 +1,8 @@
-"""
-Pipeline Monitor — entry point. Orchestration only; all rendering logic
-lives in src/ui.py, all data access in src/data.py.
-"""
-
-from __future__ import annotations
-
 import streamlit as st
 
 from settings import get_settings
 from src import theme, ui
+
 
 st.set_page_config(
     page_title="LEAGUE_SNOWFLAKE Pipeline Monitor",
@@ -21,7 +15,6 @@ ui.render_header(settings)
 
 with st.sidebar:
     st.markdown("### Navigation · 导航")
-    st.caption(f"Environment: **{settings.env}**")
     section = st.radio(
         "Jump to layer",
         options=["All layers", "Seed", "Bronze", "Silver", "Gold"],

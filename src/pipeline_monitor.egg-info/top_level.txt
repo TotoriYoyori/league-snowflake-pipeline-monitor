@@ -1,6 +1,0 @@
-__init__
-data
-mock
-query
-theme
-ui

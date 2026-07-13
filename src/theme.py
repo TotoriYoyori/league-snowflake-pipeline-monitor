@@ -1,7 +1,3 @@
-"""Custom CSS injected once at app start. Light mode, fixed palette."""
-
-from __future__ import annotations
-
 CSS = """
 <style>
 :root {
@@ -155,6 +151,6 @@ div[data-testid="stVerticalBlockBorderWrapper"]:has(> div > div[data-testid="stV
 </style>
 """
 
-
+# --------------- INJECT AT STARTUP ---------------
 def inject(st_module) -> None:
     st_module.markdown(CSS, unsafe_allow_html=True)

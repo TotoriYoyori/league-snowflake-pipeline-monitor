@@ -1,31 +1,19 @@
-"""
-SQL builder classes — live Snowflake mode.
-
-Each class is a typed object that knows how to `.build()` itself into a SQL
-(or SHOW/system function) string. Mirrors the `src_query.py` pattern used by
-`analysis/item_browser`: no query is executed here, that's `data.py`'s job.
-
-Queries are lifted near-verbatim from the corresponding models/*/monitor.ipynb
-notebook so this dashboard and the underlying notebook never drift apart in
-meaning — only in presentation.
-"""
-
-from __future__ import annotations
-
-DB = "LEAGUE_RECORDS"
+from typing import Protocol
 
 
 class MonitorQuery:
-    """Base class for a buildable query. Subclasses implement `build()`."""
+    mock_file_name: str = ""
+    ttl: int = 60
 
-    def build(self) -> str:  # pragma: no cover - interface
+    def build(self) -> str:
         raise NotImplementedError
 
 
-# ===========================================================================
-# SEED (models/_infra/monitor.ipynb)
-# ===========================================================================
+# --------------- SEED (models/_infra/monitor.ipynb) ---------------
 class SeedObjectInventory(MonitorQuery):
+    mock_file_name = "seed_object_inventory"
+    ttl = 60
+
     def build(self) -> str:
         return f"""
             SELECT
@@ -36,24 +24,33 @@ class SeedObjectInventory(MonitorQuery):
                 CREATED,
                 LAST_ALTERED,
                 COMMENT
-            FROM {DB}.INFORMATION_SCHEMA.TABLES
+            FROM LEAGUE_RECORDS.INFORMATION_SCHEMA.TABLES
             WHERE TABLE_SCHEMA = 'SEED'
             ORDER BY TABLE_TYPE, TABLE_NAME
         """
 
 
 class SeedStages(MonitorQuery):
+    mock_file_name = "seed_stages"
+    ttl = 60
+
     def build(self) -> str:
-        return f"SHOW STAGES IN SCHEMA {DB}.SEED"
+        return f"SHOW STAGES IN SCHEMA LEAGUE_RECORDS.SEED"
 
 
 class SeedProcedures(MonitorQuery):
+    mock_file_name = "seed_procedures"
+    ttl = 60
+
     def build(self) -> str:
-        return f"SHOW PROCEDURES IN SCHEMA {DB}.SEED"
+        return f"SHOW PROCEDURES IN SCHEMA LEAGUE_RECORDS.SEED"
 
 
 class SeedRowCountValidation(MonitorQuery):
     """CSV-vs-table row count reconciliation per seed dataset."""
+
+    mock_file_name = "seed_row_count_validation"
+    ttl = 60
 
     def build(self) -> str:
         return f"""
@@ -68,6 +65,7 @@ class SeedRowCountValidation(MonitorQuery):
                     UNION ALL
                 SELECT 'champions_ref', COUNT(*) FROM SEED.SEED_CHAMPIONS_REF
             ),
+            
             csv_counts AS (
                 SELECT 'matches_summary' AS DATASET, COUNT(*) AS CSV_ROWS
                 FROM @SEED.SEED_UPLOAD_STG (PATTERN => '.*matches_summary.*')
@@ -84,6 +82,7 @@ class SeedRowCountValidation(MonitorQuery):
                 SELECT 'champions_ref', COUNT(*)
                 FROM @SEED.SEED_UPLOAD_STG (PATTERN => '.*champions_ref.*')
             )
+            
             SELECT
                 t.DATASET,
                 t.TABLE_ROWS,
@@ -96,6 +95,9 @@ class SeedRowCountValidation(MonitorQuery):
 
 
 class SeedStageFiles(MonitorQuery):
+    mock_file_name = "seed_stage_files"
+    ttl = 60
+
     def build(self) -> str:
         return """
             SELECT
@@ -111,6 +113,9 @@ class SeedStageFiles(MonitorQuery):
 class SeedLoadState(MonitorQuery):
     """Simulated daily ingestion pointer. DAYS_REMAINING = 0 means fully loaded."""
 
+    mock_file_name = "seed_load_state"
+    ttl = 60
+
     def build(self) -> str:
         return """
             SELECT
@@ -125,6 +130,9 @@ class SeedLoadState(MonitorQuery):
 
 
 class SeedDateIndex(MonitorQuery):
+    mock_file_name = "seed_date_index"
+    ttl = 60
+
     def __init__(self, limit: int = 10):
         self.limit = limit
 
@@ -140,10 +148,11 @@ class SeedDateIndex(MonitorQuery):
         """
 
 
-# ===========================================================================
-# BRONZE (models/bronze/monitor.ipynb)
-# ===========================================================================
+# --------------- BRONZE (models/bronze/monitor.ipynb) ---------------
 class BronzeObjectInventory(MonitorQuery):
+    mock_file_name = "bronze_object_inventory"
+    ttl = 60
+
     def build(self) -> str:
         return f"""
             SELECT
@@ -154,33 +163,48 @@ class BronzeObjectInventory(MonitorQuery):
                 CREATED,
                 LAST_ALTERED,
                 COMMENT
-            FROM {DB}.INFORMATION_SCHEMA.TABLES
+            FROM LEAGUE_RECORDS.INFORMATION_SCHEMA.TABLES
             WHERE TABLE_SCHEMA = 'BRONZE'
             ORDER BY TABLE_TYPE, TABLE_NAME
         """
 
 
 class BronzeStages(MonitorQuery):
+    mock_file_name = "bronze_stages"
+    ttl = 60
+
     def build(self) -> str:
-        return f"SHOW STAGES IN SCHEMA {DB}.BRONZE"
+        return f"SHOW STAGES IN SCHEMA LEAGUE_RECORDS.BRONZE"
 
 
 class BronzePipes(MonitorQuery):
+    mock_file_name = "bronze_pipes"
+    ttl = 60
+
     def build(self) -> str:
-        return f"SHOW PIPES IN SCHEMA {DB}.BRONZE"
+        return f"SHOW PIPES IN SCHEMA LEAGUE_RECORDS.BRONZE"
 
 
 class BronzeStreams(MonitorQuery):
+    mock_file_name = "bronze_streams"
+    ttl = 60
+
     def build(self) -> str:
-        return f"SHOW STREAMS IN SCHEMA {DB}.BRONZE"
+        return f"SHOW STREAMS IN SCHEMA LEAGUE_RECORDS.BRONZE"
 
 
 class BronzeFileFormats(MonitorQuery):
+    mock_file_name = "bronze_file_formats"
+    ttl = 60
+
     def build(self) -> str:
-        return f"SHOW FILE FORMATS IN SCHEMA {DB}.BRONZE"
+        return f"SHOW FILE FORMATS IN SCHEMA LEAGUE_RECORDS.BRONZE"
 
 
 class BronzeRowCounts(MonitorQuery):
+    mock_file_name = "bronze_row_counts"
+    ttl = 60
+
     def build(self) -> str:
         return """
             SELECT 'MATCHES_SUMMARY_BRONZE' AS TABLE_NAME, COUNT(*) AS ROW_COUNT
@@ -201,6 +225,9 @@ class BronzeRowCounts(MonitorQuery):
 
 
 class BronzePipeStatus(MonitorQuery):
+    mock_file_name = "bronze_pipe_status"
+    ttl = 30
+
     def build(self) -> str:
         return """
             SELECT
@@ -224,6 +251,9 @@ class BronzePipeStatus(MonitorQuery):
 
 
 class BronzeCopyHistory(MonitorQuery):
+    mock_file_name = "bronze_copy_history"
+    ttl = 120
+
     def __init__(self, lookback_hours: int = 24 * 14):
         self.lookback_hours = lookback_hours
 
@@ -259,6 +289,9 @@ class BronzeCopyHistory(MonitorQuery):
 
 
 class BronzeStageFiles(MonitorQuery):
+    mock_file_name = "bronze_stage_files"
+    ttl = 60
+
     def build(self) -> str:
         return """
             SELECT 'MATCHES_SUMMARY_STG' AS STAGE, RELATIVE_PATH, ROUND(SIZE / 1024, 0)::INTEGER AS SIZE_KB, LAST_MODIFIED
@@ -280,6 +313,9 @@ class BronzeStageFiles(MonitorQuery):
 
 
 class BronzeStreamState(MonitorQuery):
+    mock_file_name = "bronze_stream_state"
+    ttl = 30
+
     def build(self) -> str:
         return """
             SELECT 'MATCHES_SUMMARY_BRONZE_STM' AS STREAM, SYSTEM$STREAM_HAS_DATA('BRONZE.MATCHES_SUMMARY_BRONZE_STM') AS HAS_DATA
@@ -294,24 +330,29 @@ class BronzeStreamState(MonitorQuery):
         """
 
 
-# ===========================================================================
-# SILVER (models/silver/monitor.ipynb)
-# ===========================================================================
+# --------------- SILVER (models/silver/monitor.ipynb) ---------------
 class SilverObjectInventory(MonitorQuery):
     """Tables, views, and tasks combined into one inventory (3 SHOW calls in
-    the notebook; concatenated client-side in mock mode and live mode alike)."""
+    the notebook; concatenated client-side in mock mode and live mode alike).
+
+    Special-shaped: no single `.build()` result — handled by its own named
+    loader in data.py, not the generic `load_query`.
+    """
 
     def build_tables(self) -> str:
-        return f"SHOW TABLES IN SCHEMA {DB}.SILVER"
+        return f"SHOW TABLES IN SCHEMA LEAGUE_RECORDS.SILVER"
 
     def build_views(self) -> str:
-        return f"SHOW VIEWS IN SCHEMA {DB}.SILVER"
+        return f"SHOW VIEWS IN SCHEMA LEAGUE_RECORDS.SILVER"
 
     def build_tasks(self) -> str:
-        return f"SHOW TASKS IN SCHEMA {DB}.SILVER"
+        return f"SHOW TASKS IN SCHEMA LEAGUE_RECORDS.SILVER"
 
 
 class SilverTaskHistory(MonitorQuery):
+    mock_file_name = "silver_task_history"
+    ttl = 60
+
     def __init__(self, lookback_hours: int = 24):
         self.lookback_hours = lookback_hours
 
@@ -335,6 +376,9 @@ class SilverTaskHistory(MonitorQuery):
 
 
 class SilverTaskSummary(MonitorQuery):
+    mock_file_name = "silver_task_summary"
+    ttl = 60
+
     def __init__(self, lookback_hours: int = 24):
         self.lookback_hours = lookback_hours
 
@@ -356,6 +400,9 @@ class SilverTaskSummary(MonitorQuery):
 
 
 class SilverStreamState(MonitorQuery):
+    mock_file_name = "silver_stream_state"
+    ttl = 30
+
     def build(self) -> str:
         return """
             SELECT 'MATCH_INTERVALS_BRONZE_STM' AS STREAM_NAME, SYSTEM$STREAM_HAS_DATA('BRONZE.MATCH_INTERVALS_BRONZE_STM') AS HAS_DATA
@@ -373,6 +420,9 @@ class SilverStreamState(MonitorQuery):
 class SilverRowCounts(MonitorQuery):
     """Row counts + size + LAST_ALTERED, used as a freshness proxy."""
 
+    mock_file_name = "silver_row_counts"
+    ttl = 60
+
     def build(self) -> str:
         return f"""
             SELECT
@@ -381,7 +431,7 @@ class SilverRowCounts(MonitorQuery):
                 BYTES,
                 ROUND(BYTES / 1024 / 1024, 2) AS SIZE_MB,
                 LAST_ALTERED
-            FROM {DB}.INFORMATION_SCHEMA.TABLES
+            FROM LEAGUE_RECORDS.INFORMATION_SCHEMA.TABLES
             WHERE TABLE_SCHEMA = 'SILVER'
                 AND TABLE_TYPE = 'BASE TABLE'
             ORDER BY ROW_COUNT DESC
@@ -390,6 +440,9 @@ class SilverRowCounts(MonitorQuery):
 
 class SilverVsGoldCounts(MonitorQuery):
     """Outgoing: row count parity between Silver and Gold for key relationships."""
+
+    mock_file_name = "silver_vs_gold_counts"
+    ttl = 60
 
     def build(self) -> str:
         return """
@@ -420,14 +473,25 @@ class SilverVsGoldCounts(MonitorQuery):
 # GOLD (models/gold/monitor.ipynb)
 # ===========================================================================
 class GoldObjectInventory(MonitorQuery):
+    mock_file_name = "gold_object_inventory"
+    ttl = 60
+
     def build(self) -> str:
-        return f"SHOW DYNAMIC TABLES IN SCHEMA {DB}.GOLD"
+        return f"SHOW DYNAMIC TABLES IN SCHEMA LEAGUE_RECORDS.GOLD"
 
 
 class GoldDtFreshness(MonitorQuery):
     """Relies on result-scanning the prior SHOW DYNAMIC TABLES call; in live
     mode this must run immediately after GoldObjectInventory in the same
-    session, matching the notebook's pattern."""
+    session, matching the notebook's pattern.
+
+    Special-shaped: handled by its own named loader in data.py, not the
+    generic `load_query`, since it depends on a preceding query in the same
+    session.
+    """
+
+    mock_file_name = "gold_dt_freshness"
+    ttl = 60
 
     def build(self) -> str:
         return """
@@ -448,6 +512,9 @@ class GoldDtFreshness(MonitorQuery):
 
 
 class GoldRefreshHistory(MonitorQuery):
+    mock_file_name = "gold_refresh_history"
+    ttl = 60
+
     def __init__(self, limit: int = 30):
         self.limit = limit
 
@@ -463,7 +530,7 @@ class GoldRefreshHistory(MonitorQuery):
                 STATISTICS:"numDeletedRows"::INT AS ROWS_DELETED,
                 STATISTICS:"numCopiedRows"::INT AS ROWS_COPIED
             FROM TABLE(INFORMATION_SCHEMA.DYNAMIC_TABLE_REFRESH_HISTORY(
-                NAME_PREFIX => '{DB}.GOLD.'
+                NAME_PREFIX => 'LEAGUE_RECORDS.GOLD.'
             ))
             ORDER BY REFRESH_END_TIME DESC
             LIMIT {self.limit}
@@ -473,6 +540,9 @@ class GoldRefreshHistory(MonitorQuery):
 class GoldGrainValidation(MonitorQuery):
     """Validates gold-table grain against the silver tables they're derived
     from (existence/shape check, not the excluded sample-match recompute)."""
+
+    mock_file_name = "gold_grain_validation"
+    ttl = 60
 
     def build(self) -> str:
         return """

@@ -1,15 +1,3 @@
-"""
-UI layout. Orchestration only in `streamlit_app.py`; this module owns how
-things are drawn.
-
-Layout convention: each layer section opens with a row of summary metrics,
-then every check from that layer's monitor.ipynb is rendered as its own
-card with the data visible by default (no expanders) — per the "per-check
-breakdown always visible" decision for this audience (DE/DS/PM).
-"""
-
-from __future__ import annotations
-
 import textwrap
 
 import pandas as pd
@@ -17,26 +5,39 @@ import streamlit as st
 
 from settings import Settings
 from src import data as d
+from src import query as q
 
+# --------------- CONSTANTS ---------------
 PILL_OK = "pm-pill-ok"
 PILL_WARN = "pm-pill-warn"
 PILL_FAIL = "pm-pill-fail"
 PILL_NEUTRAL = "pm-pill-neutral"
+
+APP_TITLE = "Pipeline Monitor"
+APP_SUBTITLE_EN = "League of Legends Snowflake Pipeline Monitoring Dashboard"
+APP_SUBTITLE_ZH = "英雄联盟数据管道 — 健康与活动监控"
+LAYER_LABELS = {
+    "seed": ("Seed", "种子层"),
+    "bronze": ("Bronze", "青铜层"),
+    "silver": ("Silver", "白银层"),
+    "gold": ("Gold", "黄金层"),
+}
 
 
 def _pill(text: str, level: str = PILL_NEUTRAL) -> str:
     return f'<span class="pm-pill {level}">{text}</span>'
 
 
+# --------------- RENDERING ---------------
 def render_header(settings: Settings) -> None:
     mode_label = "Local / Mock" if settings.is_local else "Snowflake (live)"
     mode_level = PILL_NEUTRAL if settings.is_local else PILL_OK
     st.markdown(
         textwrap.dedent(f"""
         <div class="pm-header">
-            <div class="pm-title">{settings.ui.app_title} {_pill(mode_label, mode_level)}</div>
-            <div class="pm-subtitle-en">{settings.ui.app_subtitle_en}</div>
-            <div class="pm-subtitle-zh">{settings.ui.app_subtitle_zh}</div>
+            <div class="pm-title">{APP_TITLE} {_pill(mode_label, mode_level)}</div>
+            <div class="pm-subtitle-en">{APP_SUBTITLE_EN}</div>
+            <div class="pm-subtitle-zh">{APP_SUBTITLE_ZH}</div>
         </div>
         """),
         unsafe_allow_html=True,
@@ -44,7 +45,7 @@ def render_header(settings: Settings) -> None:
 
 
 def render_layer_header(layer_key: str, settings: Settings) -> None:
-    en, zh = settings.ui.layer_labels[layer_key]
+    en, zh = LAYER_LABELS[layer_key]
     st.markdown(
         textwrap.dedent(f"""
         <div class="pm-layer-header">
@@ -96,13 +97,13 @@ def _count_status(df: pd.DataFrame, col: str, ok_values: tuple[str, ...]) -> tup
 def render_seed(settings: Settings) -> None:
     render_layer_header("seed", settings)
 
-    inventory = d.load_seed_object_inventory(settings)
-    stages = d.load_seed_stages(settings)
-    procedures = d.load_seed_procedures(settings)
-    row_validation = d.load_seed_row_count_validation(settings)
-    stage_files = d.load_seed_stage_files(settings)
-    load_state = d.load_seed_load_state(settings)
-    date_index = d.load_seed_date_index(settings)
+    inventory = d.load_query(q.SeedObjectInventory())
+    stages = d.load_query(q.SeedStages())
+    procedures = d.load_query(q.SeedProcedures())
+    row_validation = d.load_query(q.SeedRowCountValidation())
+    stage_files = d.load_query(q.SeedStageFiles())
+    load_state = d.load_query(q.SeedLoadState())
+    date_index = d.load_query(q.SeedDateIndex())
 
     ok, total = _count_status(row_validation, "STATUS", ("PASS",))
     c1, c2, c3 = st.columns(3)
@@ -152,16 +153,16 @@ def render_seed(settings: Settings) -> None:
 def render_bronze(settings: Settings) -> None:
     render_layer_header("bronze", settings)
 
-    inventory = d.load_bronze_object_inventory(settings)
-    stages = d.load_bronze_stages(settings)
-    pipes = d.load_bronze_pipes(settings)
-    streams = d.load_bronze_streams(settings)
-    file_formats = d.load_bronze_file_formats(settings)
-    row_counts = d.load_bronze_row_counts(settings)
-    pipe_status = d.load_bronze_pipe_status(settings)
-    copy_history = d.load_bronze_copy_history(settings)
-    stage_files = d.load_bronze_stage_files(settings)
-    stream_state = d.load_bronze_stream_state(settings)
+    inventory = d.load_query(q.BronzeObjectInventory())
+    stages = d.load_query(q.BronzeStages())
+    pipes = d.load_query(q.BronzePipes())
+    streams = d.load_query(q.BronzeStreams())
+    file_formats = d.load_query(q.BronzeFileFormats())
+    row_counts = d.load_query(q.BronzeRowCounts())
+    pipe_status = d.load_query(q.BronzePipeStatus())
+    copy_history = d.load_query(q.BronzeCopyHistory())
+    stage_files = d.load_query(q.BronzeStageFiles())
+    stream_state = d.load_query(q.BronzeStreamState())
 
     pending = int(pipe_status["PENDING_FILE_COUNT"].sum()) if not pipe_status.empty else 0
     running = int((pipe_status["EXECUTION_STATE"] == "RUNNING").sum()) if not pipe_status.empty else 0
@@ -228,12 +229,12 @@ def render_bronze(settings: Settings) -> None:
 def render_silver(settings: Settings) -> None:
     render_layer_header("silver", settings)
 
-    inventory = d.load_silver_object_inventory(settings)
-    task_history = d.load_silver_task_history(settings)
-    task_summary = d.load_silver_task_summary(settings)
-    stream_state = d.load_silver_stream_state(settings)
-    row_counts = d.load_silver_row_counts(settings)
-    vs_gold = d.load_silver_vs_gold_counts(settings)
+    inventory = d.load_silver_object_inventory()
+    task_history = d.load_query(q.SilverTaskHistory())
+    task_summary = d.load_query(q.SilverTaskSummary())
+    stream_state = d.load_query(q.SilverStreamState())
+    row_counts = d.load_query(q.SilverRowCounts())
+    vs_gold = d.load_query(q.SilverVsGoldCounts())
 
     failed = int((task_summary["STATE"] != "SUCCEEDED").sum()) if "STATE" in task_summary.columns else 0
     diff_total = int(vs_gold["DIFF"].abs().sum()) if "DIFF" in vs_gold.columns else 0
@@ -294,10 +295,10 @@ def render_silver(settings: Settings) -> None:
 def render_gold(settings: Settings) -> None:
     render_layer_header("gold", settings)
 
-    inventory = d.load_gold_object_inventory(settings)
-    freshness = d.load_gold_dt_freshness(settings)
-    refresh_history = d.load_gold_refresh_history(settings)
-    grain = d.load_gold_grain_validation(settings)
+    inventory = d.load_query(q.GoldObjectInventory())
+    freshness = d.load_gold_dt_freshness()
+    refresh_history = d.load_query(q.GoldRefreshHistory())
+    grain = d.load_query(q.GoldGrainValidation())
 
     behind = int((~freshness["FRESHNESS_STATUS"].astype(str).str.contains("ON TRACK")).sum()) if "FRESHNESS_STATUS" in freshness.columns else 0
     refresh_failures = int((refresh_history["REFRESH_STATE"] != "SUCCEEDED").sum()) if "REFRESH_STATE" in refresh_history.columns else 0

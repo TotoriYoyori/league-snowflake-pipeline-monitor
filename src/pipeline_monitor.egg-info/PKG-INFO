@@ -1,9 +1,0 @@
-Metadata-Version: 2.4
-Name: pipeline-monitor
-Version: 0.1.0
-Summary: League Snowflake pipeline monitoring dashboard (Streamlit-in-Snowflake)
-Requires-Python: >=3.10
-Requires-Dist: streamlit>=1.38
-Requires-Dist: pandas>=2.0
-Provides-Extra: live
-Requires-Dist: snowflake-snowpark-python>=1.20; extra == "live"
