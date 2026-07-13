@@ -13,7 +13,6 @@ entities:
     main_file: streamlit_app.py
     artifacts:
       - streamlit_app.py
-      - settings.py
       - src/__init__.py
       - src/query.py
       - src/data.py

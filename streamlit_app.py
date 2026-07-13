@@ -1,7 +1,7 @@
 import streamlit as st
 
-from settings import get_settings
 from src import theme, ui
+from src import query as q
 
 
 st.set_page_config(
@@ -9,15 +9,26 @@ st.set_page_config(
     layout="wide",
 )
 
-settings = get_settings()
 theme.inject(st)
-ui.render_header(settings)
+ui.render_header()
+
+ALL_LAYERS_LABEL = "All layers · 全部层"
+
+seed_en, seed_zh, _ = q.LAYERS["seed"]
+bronze_en, bronze_zh, _ = q.LAYERS["bronze"]
+silver_en, silver_zh, _ = q.LAYERS["silver"]
+gold_en, gold_zh, _ = q.LAYERS["gold"]
+
+seed_label = f"{seed_en} · {seed_zh}"
+bronze_label = f"{bronze_en} · {bronze_zh}"
+silver_label = f"{silver_en} · {silver_zh}"
+gold_label = f"{gold_en} · {gold_zh}"
 
 with st.sidebar:
     st.markdown("### Navigation · 导航")
     section = st.radio(
         "Jump to layer",
-        options=["All layers", "Seed", "Bronze", "Silver", "Gold"],
+        options=[ALL_LAYERS_LABEL, seed_label, bronze_label, silver_label, gold_label],
         label_visibility="collapsed",
     )
     st.divider()
@@ -26,12 +37,16 @@ with st.sidebar:
         "For raw data previews or ad-hoc inspection, open the notebook "
         "for the relevant layer directly in Snowsight."
     )
+    st.caption(
+        "本仪表盘汇总自 models/*/monitor.ipynb。"
+        "如果需要预览原始数据或进行临时排查，请直接在 Snowsight 中打开对应层级的 Notebook。"
+    )
 
-if section in ("All layers", "Seed"):
-    ui.render_seed(settings)
-if section in ("All layers", "Bronze"):
-    ui.render_bronze(settings)
-if section in ("All layers", "Silver"):
-    ui.render_silver(settings)
-if section in ("All layers", "Gold"):
-    ui.render_gold(settings)
+if section in (ALL_LAYERS_LABEL, seed_label):
+    ui.render_seed()
+if section in (ALL_LAYERS_LABEL, bronze_label):
+    ui.render_bronze()
+if section in (ALL_LAYERS_LABEL, silver_label):
+    ui.render_silver()
+if section in (ALL_LAYERS_LABEL, gold_label):
+    ui.render_gold()

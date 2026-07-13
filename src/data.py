@@ -4,7 +4,6 @@ import pandas as pd
 import streamlit as st
 
 from src import query as q
-from settings import get_settings, Settings
 
 
 # --------------- CONSTANTS ---------------
@@ -12,26 +11,36 @@ SAMPLE_DATA_DIR = os.path.join(
     os.path.dirname(os.path.dirname(__file__)), "assets", "sample_data"
 )
 
+# SiS session token file only exists inside Snowflake -> use Snowflake live data.
+IS_LOCAL: bool = not os.path.isfile("/snowflake/session/token")
+
 
 def read_mock(name: str) -> pd.DataFrame:
     path = os.path.join(SAMPLE_DATA_DIR, f"{name}.csv")
     return pd.read_csv(path)
 
 
-# --------------- SETTINGS AND SESSIONS ---------------
-settings = get_settings()
+# --------------- FAILURE HANDLING ---------------
+def _failed(message: str) -> pd.DataFrame:
+    df = pd.DataFrame()
+    df.attrs["error"] = message
+
+    return df
 
 
+def load_error(df: pd.DataFrame) -> str | None:
+    """The error message if `df` came from a failed load, else None."""
+    return df.attrs.get("error")
+
+
+# --------------- SESSIONS ---------------
 @st.cache_resource
-def get_session(_settings: Settings):
+def get_session():
     """Return the Snowpark session in SiS, or None when running locally."""
-    if _settings.is_local:
+    if IS_LOCAL:
         return None
 
-    conn = st.connection(
-        "snowflake",
-        ttl=_settings.snowflake_connection_ttl
-    )
+    conn = st.connection("snowflake", ttl=None)
     return conn.session()
 
 
@@ -40,25 +49,19 @@ def _run(session, sql: str) -> pd.DataFrame:
 
 
 # --------------- RUN QUERY AGAINST SNOWFLAKE (LIVE) OR READ FROM SAMPLE DATA ---------------
+@st.cache_data(ttl=60, show_spinner="Loading…")
+def _load(_query: q.MonitorQuery, cache_key: str) -> pd.DataFrame:
+    try:
+        if IS_LOCAL:
+            return read_mock(_query.mock_file_name)
+
+        return _run(get_session(), _query.build())
+    except Exception as e:
+        return _failed(str(e))
+
+
 def load_query(query: q.MonitorQuery) -> pd.DataFrame:
-    """Generic loader for any MonitorQuery with a `.build()` and
-    `mock_file_name`. Covers every check except the two special-shaped
-    loaders below."""
-
-    @st.cache_data(
-        ttl=query.ttl,
-        show_spinner=f"Loading {query.mock_file_name.replace('_', ' ')}…"
-    )
-    def _load():
-        if settings.is_local:
-            return read_mock(query.mock_file_name)
-
-        return _run(
-            get_session(settings),
-            query.build()
-        )
-
-    return _load()
+    return _load(query, query.build())
 
 
 # --------------- SPECIAL LOADERS (multi-query / session-order dependent) ---------------
@@ -68,22 +71,25 @@ def load_silver_object_inventory() -> pd.DataFrame:
         show_spinner="Loading silver object inventory…"
     )
     def _load():
-        if settings.is_local:
-            return read_mock("silver_object_inventory")
+        try:
+            if IS_LOCAL:
+                return read_mock("silver_object_inventory")
 
-        session = get_session(settings)
-        sq = q.SilverObjectInventory()
-        tables = _run(session, sq.build_tables())
-        views = _run(session, sq.build_views())
-        tasks = _run(session, sq.build_tasks())
-        tables["OBJECT_TYPE"], tasks["OBJECT_TYPE"], views["OBJECT_TYPE"] = (
-            "TABLE", "TASK", "VIEW"
-        )
-        cols = ["OBJECT_TYPE", "name"]
-        combined = pd.concat(
-            [tables[cols], views[cols], tasks[cols]], ignore_index=True
-        ).rename(columns={"name": "OBJECT_NAME"})
-        return combined
+            session = get_session()
+            sq = q.SilverObjectInventory()
+            tables = _run(session, sq.build_tables())
+            views = _run(session, sq.build_views())
+            tasks = _run(session, sq.build_tasks())
+            tables["OBJECT_TYPE"], tasks["OBJECT_TYPE"], views["OBJECT_TYPE"] = (
+                "TABLE", "TASK", "VIEW"
+            )
+            cols = ["OBJECT_TYPE", "name"]
+            combined = pd.concat(
+                [tables[cols], views[cols], tasks[cols]], ignore_index=True
+            ).rename(columns={"name": "OBJECT_NAME"})
+            return combined
+        except Exception as e:
+            return _failed(str(e))
 
     return _load()
 
@@ -92,19 +98,18 @@ def load_gold_dt_freshness() -> pd.DataFrame:
     query = q.GoldDtFreshness()
 
     @st.cache_data(
-        ttl=query.ttl,
+        ttl=60,
         show_spinner="Checking dynamic table freshness…"
     )
     def _load():
-        if settings.is_local:
-            return read_mock(query.mock_file_name)
-        # Must run SHOW DYNAMIC TABLES immediately before the RESULT_SCAN
-        # query, in the same session, matching the notebook's pattern.
-        session = get_session(settings)
-        session.sql(q.GoldObjectInventory().build()).collect()
-        return _run(
-            session,
-            query.build()
-        )
+        try:
+            if IS_LOCAL:
+                return read_mock(query.mock_file_name)
+
+            session = get_session()
+            session.sql(q.GoldObjectInventory().build()).collect()
+            return _run(session, query.build())
+        except Exception as e:
+            return _failed(str(e))
 
     return _load()
