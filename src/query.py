@@ -3,10 +3,7 @@ import pandas as pd
 
 # --------------- BASE MONITOR QUERY ---------------
 class MonitorQuery:
-    """Represent a pipeline monitoring check. This base class knows its live Snowflake query to fetch data,
-    the mock file for sampling purpose, and the check title/descriptions. For some checks where status is
-    displayed as status on the UI, they also get a status() method.
-    """
+    """One pipeline monitoring check: live query, mock file, and title/description."""
     mock_file_name: str = ""
     title_en: str = ""
     title_zh: str = ""
@@ -29,7 +26,7 @@ class SeedObjectInventory(MonitorQuery):
     desc_en = "All registered objects in the SEED schema."
 
     def build(self) -> str:
-        return f"""
+        return """
             SELECT
                 TABLE_TYPE AS OBJECT_TYPE,
                 TABLE_NAME AS OBJECT_NAME,
@@ -51,7 +48,7 @@ class SeedStages(MonitorQuery):
     desc_en = "Stages registered under SEED."
 
     def build(self) -> str:
-        return f"SHOW STAGES IN SCHEMA LEAGUE_RECORDS.SEED"
+        return "SHOW STAGES IN SCHEMA LEAGUE_RECORDS.SEED"
 
 
 class SeedProcedures(MonitorQuery):
@@ -61,7 +58,7 @@ class SeedProcedures(MonitorQuery):
     desc_en = "VALIDATE_SEED_UPLOAD / SIMULATE_DAILY_LOAD registration."
 
     def build(self) -> str:
-        return f"SHOW PROCEDURES IN SCHEMA LEAGUE_RECORDS.SEED"
+        return "SHOW PROCEDURES IN SCHEMA LEAGUE_RECORDS.SEED"
 
 
 class SeedRowCountValidation(MonitorQuery):
@@ -71,7 +68,7 @@ class SeedRowCountValidation(MonitorQuery):
     desc_en = "Verifies the base COPY INTO for all 5 source datasets matched the uploaded CSVs."
 
     def build(self) -> str:
-        return f"""
+        return """
             WITH table_counts AS (
                 SELECT 'matches_summary' AS DATASET, COUNT(*) AS TABLE_ROWS FROM SEED.SEED_MATCHES_SUMMARY
                     UNION ALL
@@ -187,7 +184,7 @@ class BronzeObjectInventory(MonitorQuery):
     desc_en = "Tables/views in the BRONZE schema."
 
     def build(self) -> str:
-        return f"""
+        return """
             SELECT
                 TABLE_TYPE AS OBJECT_TYPE,
                 TABLE_NAME AS OBJECT_NAME,
@@ -209,7 +206,7 @@ class BronzeStages(MonitorQuery):
     desc_en = "Stages registered under BRONZE."
 
     def build(self) -> str:
-        return f"SHOW STAGES IN SCHEMA LEAGUE_RECORDS.BRONZE"
+        return "SHOW STAGES IN SCHEMA LEAGUE_RECORDS.BRONZE"
 
 
 class BronzePipes(MonitorQuery):
@@ -219,7 +216,7 @@ class BronzePipes(MonitorQuery):
     desc_en = "Snowpipes registered under BRONZE for continuous file ingestion."
 
     def build(self) -> str:
-        return f"SHOW PIPES IN SCHEMA LEAGUE_RECORDS.BRONZE"
+        return "SHOW PIPES IN SCHEMA LEAGUE_RECORDS.BRONZE"
 
 
 class BronzeStreams(MonitorQuery):
@@ -229,7 +226,7 @@ class BronzeStreams(MonitorQuery):
     desc_en = "Streams registered under BRONZE, tracking change data for downstream silver tasks."
 
     def build(self) -> str:
-        return f"SHOW STREAMS IN SCHEMA LEAGUE_RECORDS.BRONZE"
+        return "SHOW STREAMS IN SCHEMA LEAGUE_RECORDS.BRONZE"
 
 
 class BronzeFileFormats(MonitorQuery):
@@ -239,7 +236,7 @@ class BronzeFileFormats(MonitorQuery):
     desc_en = "File formats registered under BRONZE, used by pipes and COPY INTO to parse staged files."
 
     def build(self) -> str:
-        return f"SHOW FILE FORMATS IN SCHEMA LEAGUE_RECORDS.BRONZE"
+        return "SHOW FILE FORMATS IN SCHEMA LEAGUE_RECORDS.BRONZE"
 
 
 class BronzeRowCounts(MonitorQuery):
@@ -395,23 +392,20 @@ class BronzeStreamState(MonitorQuery):
 
 # --------------- SILVER (models/silver/monitor.ipynb) ---------------
 class SilverObjectInventory(MonitorQuery):
-    """Special-shaped: no single `.build()` result — handled by its own named
-    loader in data.py, not the generic `load_query`. Excluded from LAYERS'
-    generic check rows below for the same reason.
-    """
+    """Special-shaped: multi-query, handled by its own loader in data.py."""
 
     title_en = "Object Inventory"
     title_zh = "对象清单"
     desc_en = "Tables, views, and tasks in the SILVER schema."
 
     def build_tables(self) -> str:
-        return f"SHOW TABLES IN SCHEMA LEAGUE_RECORDS.SILVER"
+        return "SHOW TABLES IN SCHEMA LEAGUE_RECORDS.SILVER"
 
     def build_views(self) -> str:
-        return f"SHOW VIEWS IN SCHEMA LEAGUE_RECORDS.SILVER"
+        return "SHOW VIEWS IN SCHEMA LEAGUE_RECORDS.SILVER"
 
     def build_tasks(self) -> str:
-        return f"SHOW TASKS IN SCHEMA LEAGUE_RECORDS.SILVER"
+        return "SHOW TASKS IN SCHEMA LEAGUE_RECORDS.SILVER"
 
 
 class SilverTaskHistory(MonitorQuery):
@@ -504,10 +498,10 @@ class SilverRowCounts(MonitorQuery):
     mock_file_name = "silver_row_counts"
     title_en = "Silver Row Counts & Freshness"
     title_zh = "白银层行数与新鲜度"
-    desc_en = "Row counts, size, and LAST_ALTERED per silver table — used as a freshness proxy."
+    desc_en = "Row counts, size, and LAST_ALTERED per silver table."
 
     def build(self) -> str:
-        return f"""
+        return """
             SELECT
                 TABLE_NAME,
                 ROW_COUNT,
@@ -564,22 +558,18 @@ class GoldObjectInventory(MonitorQuery):
     desc_en = "All 5 dynamic tables under GOLD."
 
     def build(self) -> str:
-        return f"SHOW DYNAMIC TABLES IN SCHEMA LEAGUE_RECORDS.GOLD"
+        return "SHOW DYNAMIC TABLES IN SCHEMA LEAGUE_RECORDS.GOLD"
 
 
 class GoldDtFreshness(MonitorQuery):
-    """Special-shaped: handled by its own named loader in data.py, not the
-    generic `load_query`, since it depends on a preceding query in the same
-    session. Excluded from LAYERS' generic check rows below for the same
-    reason.
-    """
+    """Special-shaped: depends on a preceding query in the same session, handled by its own loader in data.py."""
 
     mock_file_name = "gold_dt_freshness"
     title_en = "Dynamic Table Freshness Check"
     title_zh = "动态表新鲜度检查"
     desc_en = (
         "Scheduling state, target lag, and actual lag per dynamic table. Note: in a simulated daily-load "
-        "pipeline, tables will show BEHIND SCHEDULE between simulated loads — that's expected, not broken."
+        "pipeline, tables will show BEHIND SCHEDULE between simulated loads because this pipeline is not real..."
     )
 
     def build(self) -> str:

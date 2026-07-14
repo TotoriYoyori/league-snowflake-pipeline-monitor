@@ -8,16 +8,13 @@ entities:
       name: PIPELINE_MONITOR
     title: PIPELINE MONITORING DASHBOARD
     query_warehouse: COMPUTE_WH
-    run_mode: OwnerMode
-    execute_as: OWNER
     main_file: streamlit_app.py
     artifacts:
       - streamlit_app.py
       - src/__init__.py
       - src/query.py
       - src/data.py
-      - src/theme.py
-      - src/ui.py
-      - pyproject.toml
+      - src/mock.py
+      - src/ui/
       - .streamlit/config.toml
       - assets/

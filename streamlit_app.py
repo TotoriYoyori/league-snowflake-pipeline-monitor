@@ -1,7 +1,6 @@
 import streamlit as st
 
-from src import theme, ui
-from src import query as q
+from src import query, ui
 
 
 st.set_page_config(
@@ -9,15 +8,15 @@ st.set_page_config(
     layout="wide",
 )
 
-theme.inject(st)
+ui.inject(st)
 ui.render_header()
 
 ALL_LAYERS_LABEL = "All layers · 全部层"
 
-seed_en, seed_zh, _ = q.LAYERS["seed"]
-bronze_en, bronze_zh, _ = q.LAYERS["bronze"]
-silver_en, silver_zh, _ = q.LAYERS["silver"]
-gold_en, gold_zh, _ = q.LAYERS["gold"]
+seed_en, seed_zh, _ = query.LAYERS["seed"]
+bronze_en, bronze_zh, _ = query.LAYERS["bronze"]
+silver_en, silver_zh, _ = query.LAYERS["silver"]
+gold_en, gold_zh, _ = query.LAYERS["gold"]
 
 seed_label = f"{seed_en} · {seed_zh}"
 bronze_label = f"{bronze_en} · {bronze_zh}"

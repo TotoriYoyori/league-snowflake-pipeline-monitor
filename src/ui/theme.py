@@ -1,19 +1,38 @@
+# --------------- STYLING ---------------
+PALETTE = {
+    "red": "#cc1f1f",
+    "dark_red": "#a81818",
+    "amber": "#e08a1e",
+    "green": "#2f9e63",
+    "page_bg": "#f1f1f1",
+    "card_bg": "#ffffff",
+    "card_border": "#e6e6e6",
+    "subtle_border": "#f1f1f1",
+    "thead_bg": "#fafafa",
+    "ink": "#1a1a1a",
+    "ink_soft": "#888888",
+    "ink_faint": "#aaaaaa",
+}
+FONT_MAIN = '"Noto Sans SC", system-ui, sans-serif'
+
+
+def hex_to_rgba(hex_color: str, alpha: float) -> str:
+    hex_color = hex_color.lstrip("#")
+    r, g, b = (int(hex_color[i:i + 2], 16) for i in (0, 2, 4))
+    return f"rgba({r}, {g}, {b}, {alpha})"
+
+
+_ROOT_VARS = "\n".join(f"    --{k.replace('_', '-')}: {v};" for k, v in PALETTE.items())
+_ROOT_VARS += f"\n    --font-main: {FONT_MAIN};"
+
+_PILL_OK_BG = hex_to_rgba(PALETTE["green"], 0.12)
+_PILL_WARN_BG = hex_to_rgba(PALETTE["amber"], 0.14)
+_PILL_FAIL_BG = hex_to_rgba(PALETTE["red"], 0.12)
+
 CSS = """
 <style>
 :root {
-    --red: #cc1f1f;
-    --dark-red: #a81818;
-    --amber: #e08a1e;
-    --green: #2f9e63;
-    --page-bg: #f1f1f1;
-    --card-bg: #ffffff;
-    --card-border: #e6e6e6;
-    --subtle-border: #f1f1f1;
-    --thead-bg: #fafafa;
-    --ink: #1a1a1a;
-    --ink-soft: #888888;
-    --ink-faint: #aaaaaa;
-    --font-main: "Noto Sans SC", system-ui, sans-serif;
+""" + _ROOT_VARS + """
 }
 
 html, body, [class*="css"] {
@@ -73,6 +92,7 @@ html, body, [class*="css"] {
 div[data-testid="stVerticalBlockBorderWrapper"]:has(> div > div[data-testid="stVerticalBlock"] .pm-card-title) {
     background-color: var(--card-bg);
     border: 1px solid var(--card-border) !important;
+    border-radius: 0;
     padding: 0.9rem 1rem;
     margin-bottom: 0.9rem;
 }
@@ -104,17 +124,18 @@ div[data-testid="stVerticalBlockBorderWrapper"]:has(> div > div[data-testid="stV
     font-size: 0.72rem;
     font-weight: 600;
     padding: 2px 10px;
-    border-radius: 999px;
+    border-radius: 0;
     white-space: nowrap;
 }
-.pm-pill-ok { background-color: rgba(47, 158, 99, 0.12); color: var(--green); }
-.pm-pill-warn { background-color: rgba(224, 138, 30, 0.14); color: var(--amber); }
-.pm-pill-fail { background-color: rgba(204, 31, 31, 0.12); color: var(--red); }
+.pm-pill-ok { background-color: __PILL_OK_BG__; color: var(--green); }
+.pm-pill-warn { background-color: __PILL_WARN_BG__; color: var(--amber); }
+.pm-pill-fail { background-color: __PILL_FAIL_BG__; color: var(--red); }
 .pm-pill-neutral { background-color: var(--thead-bg); color: var(--ink-soft); }
 
 /* ---------- Dataframe tweaks ---------- */
 [data-testid="stDataFrame"] {
     border: 1px solid var(--subtle-border);
+    border-radius: 0;
     overflow: hidden;
     background-color: var(--page-bg);
 }
@@ -123,6 +144,7 @@ div[data-testid="stVerticalBlockBorderWrapper"]:has(> div > div[data-testid="stV
 [data-testid="stMetric"] {
     background-color: var(--card-bg);
     border: 1px solid var(--card-border);
+    border-radius: 0;
     padding: 0.6rem 0.9rem;
 }
 
@@ -130,8 +152,8 @@ div[data-testid="stVerticalBlockBorderWrapper"]:has(> div > div[data-testid="stV
     color: var(--dark-red);
 }
 
-[data-testid="stMetricLabel"] { 
-    color: var(--ink-soft); 
+[data-testid="stMetricLabel"] {
+    color: var(--ink-soft);
 }
 
 /* ---------- Sidebar ---------- */
@@ -147,7 +169,12 @@ div[data-testid="stVerticalBlockBorderWrapper"]:has(> div > div[data-testid="stV
 
 </style>
 """
+CSS = (CSS
+    .replace("__PILL_OK_BG__", _PILL_OK_BG)
+    .replace("__PILL_WARN_BG__", _PILL_WARN_BG)
+    .replace("__PILL_FAIL_BG__", _PILL_FAIL_BG)
+)
 
-# --------------- INJECT AT STARTUP ---------------
+
 def inject(st_module) -> None:
     st_module.markdown(CSS, unsafe_allow_html=True)
