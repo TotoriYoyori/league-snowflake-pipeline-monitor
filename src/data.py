@@ -8,7 +8,13 @@ from src import mock, query
 
 # --------------- CONSTANTS ---------------
 # SiS session token file only exists inside Snowflake -> use Snowflake live data.
-IS_LOCAL: bool = not os.path.isfile("/snowflake/session/token")
+IS_LOCAL: bool
+try:
+    conn = st.connection("snowflake")
+    IS_LOCAL = False
+except:
+    IS_LOCAL = True
+
 CACHE_TTL = 60
 
 
@@ -28,12 +34,14 @@ def load_error(df: pd.DataFrame) -> str | None:
 # --------------- SESSIONS ---------------
 @st.cache_resource
 def get_session():
-    """Return the Snowpark session in SiS, or None when running locally."""
     if IS_LOCAL:
         return None
 
     conn = st.connection("snowflake", ttl=None)
-    return conn.session()
+    session = conn.session()
+    session.use_warehouse("COMPUTE_WH")
+
+    return session
 
 
 def _run(session, sql: str) -> pd.DataFrame:
