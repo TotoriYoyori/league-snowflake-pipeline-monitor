@@ -1,0 +1,7 @@
+name: pipeline-monitor
+channels:
+  - snowflake
+dependencies:
+  - streamlit
+  - snowflake-snowpark-python
+  - pandas
